@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../../../css/common/mui.min.css"/>
+	<link rel="stylesheet" type="text/css" href="../../../css/common/common.css"/>
+	<link rel="stylesheet" type="text/css" href="../../../css/common/common-ex.css"/>
+	<link rel="stylesheet" type="text/css" href="../../../css/job/queryent/position.css"/>
+    <script src="../../../js/common/jquery-1.11.1.min.js" type="text/javascript" charset="utf-8"></script>
+    <script src="../../../js/common/ajax.js" type="text/javascript" charset="utf-8"></script>
+	<script src="../../../js/common/rem.js" type="text/javascript" charset="utf-8"></script>
+	<script src="../../../js/common/mui.min.js" type="text/javascript" charset="utf-8"></script>
+	<script src="../../../js/common/usercookies.js"></script>
+	<script src="../../../js/common/util.js" type="text/javascript" charset="utf-8"></script>
+	<script type="text/javascript" src="http://apps.bdimg.com/libs/jquery/2.1.1/jquery.min.js"></script>
+	<script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=Rxkd42FqEuneUMkKuU9pbAsbUm8hKbG2"></script>
+	<script src="../../../js/job/queryent/convertor.js" type="text/javascript" charset="utf-8"></script>
+	<script src="../../../js/job/queryent/maplocation.js" type="text/javascript" charset="utf-8"></script>
+</head>
+<body>
+  <header class="mui-bar mui-bar-nav ex-title-bar">
+	    <a class="mui-action-back mui-icon mui-icon-left-nav mui-pull-left"></a>
+	    <h1 class="mui-title">位置信息</h1>
+	    <input class="btn-primary" type="button" value="增加定位" onclick="setLocation();"/>
+	</header>
+	<div class="container">
+		<div class="map" background-color: #ffff00; id="map"></div>
+		<div style="position:relative; bottom: 2.0rem; padding: 0.12rem;">
+			<div class="location"><span class="iconfont icon-dingwei"></span></div>
+			<div class="place-info">
+				<div class="place" style="word-break:break-all;line-height: 0.5rem;">
+					<h3 class="title" id="mapentname"></h3>
+					<p class="address"><span id="mapdom"></span></p>
+				</div>
+			</div>
+		</div>
+	</div>
+</body>
+</html>
+<script type="text/javascript">
+var lng;//经度
+var lat;//维度
+var entPosition={};//地理坐标（经度纬度地址名称）
+if(navigator.geolocation){  
+  	navigator.geolocation.getCurrentPosition(  
+      	function(p){
+          	var latitude=p.coords.latitude;//获取坐标点纬度  
+          	var longitude=p.coords.longitude;//获取坐标点经度 
+          	var gpsPoint = new BMap.Point(longitude, latitude)//GPS定位点
+          	BMap.Convertor.translate(gpsPoint, 0, initMap); //转换坐标  
+      	}
+      	,function(e){
+          	switch (e.code) {  
+              	case e.TIMEOUT:  
+                  	alert("定位失败,请求获取用户位置超时");  
+                  	break;  
+              	case e.PERMISSION_DENIED:  
+                  	alert("定位失败,用户拒绝请求地理定位");  
+                  	break;  
+              	case e.POSITION_UNAVAILABLE:  
+                  	alert("抱歉，暂时无法为您所在的星球提供位置服务");  
+                  	break;  
+              	case e.UNKNOWN_ERROR:  
+                  	alert("定位失败,定位系统失效");  
+                  	break;  
+          	}  
+    	},{  
+	      	//指示浏览器获取高精度的位置，默认false  
+	      	enableHighAcuracy: false,  
+	      	//指定获取地理位置的超时时间，默认不限时，单位为毫秒  
+	      	timeout:5000,  
+	      	//最长有效期，在重复获取地理位置时，此参数指定多久再次获取位置  
+	      	maximumAge:2000  
+    	}  
+  	);  
+}else{  
+  	alert("不支持地理定位");  
+}
+function initMap(point){
+	entPosition.lng = point.lng;//经度
+	entPosition.lat = point.lat;//维度
+	map = new BMap.Map("map"); //创建地图实例
+	map.addControl(new BMap.NavigationControl(
+		{
+	        type : BMAP_NAVIGATION_CONTROL_LARGE, //缩放控件类型 仅包含缩放按钮
+	        anchor : BMAP_ANCHOR_BOTTOM_RIGHT, //右下角
+	        offset : new BMap.Size(12,90) //进一步控制缩放按钮的水平竖直偏移量
+	    }
+	)); //创建一个特定样式的地图平移缩放控件
+	map.addControl(new BMap.ScaleControl(
+		{
+	        anchor : BMAP_ANCHOR_BOTTOM_LEFT, //坐下角
+	        offset : new BMap.Size(50,70) //进一步控制缩放按钮的水平竖直偏移量
+	    }
+	)); //创建比例尺控件
+	map.addControl(new BMap.OverviewMapControl()); //创建缩略地图控件。
+	map.centerAndZoom(point, 16); //地图初始化，设置中心点坐标和地图级别。地图必须经过初始化才可以执行其他操作
+	var marker = new BMap.Marker(point);//设置标注
+	map.addOverlay(marker);//加入标注
+	//设置标注可拖拽
+	marker.enableDragging();
+	//创建一个地址解析器的实例
+	var geoc = new BMap.Geocoder();
+	//标注拖拽事件监听
+	marker.addEventListener("dragend", function (e) {
+		entPosition.lng = e.point.lng;//经度
+		entPosition.lat = e.point.lat;//纬度
+		point.lng = entPosition.lng;//重新设置经度
+		point.lat = entPosition.lat;//重新设置维度
+		//页面初始化对坐标点进行反地址解析
+		geoc.getLocation(point, function (rs) {
+	        var addComp = rs.addressComponents;//结构化的地址描述
+	        //省市区街道门牌号码
+	        var mapdetail = addComp.province +  addComp.city +  addComp.district +  addComp.street +  addComp.streetNumber;
+	        //判断是否有附近的POI点
+	        if(rs.surroundingPois != null&& rs.surroundingPois != ""){
+	        	mapdetail += rs.surroundingPois[0].title;
+	        }
+			entPosition.titile = mapdetail;//设置title值
+	        document.getElementById("mapdom").innerHTML=mapdetail;
+	    });
+    });
+	var location = $('.location')[0];//取得class为location的对象
+	//设置location的点击监听事件
+	location.addEventListener('click', function() {
+		point.lng = entPosition.lng;//重新设置经度
+		point.lat = entPosition.lat;//重新设置维度
+		var num = map.getZoom();//取得当前地图级别
+		map.centerAndZoom(point, num);//回到标记点为屏幕中心
+	});
+	//页面初始化对坐标点进行反地址解析
+    geoc.getLocation(point, function (rs) {
+        var addComp = rs.addressComponents;//结构化的地址描述
+        //省市区街道门牌号码
+        var mapdetail = addComp.province +  addComp.city +  addComp.district +  addComp.street +  addComp.streetNumber;
+        if(rs.surroundingPois != null&& rs.surroundingPois != ""){
+        	//附近的POI点
+        	mapdetail += rs.surroundingPois[0].title;
+        }
+        entPosition.titile = mapdetail;//设置title值
+        document.getElementById("mapdom").innerHTML=mapdetail;//设置id为mapdom的值
+    });
+} 
+</script>
